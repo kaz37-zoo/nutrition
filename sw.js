@@ -1,4 +1,4 @@
-/* Nutrition Tracker v11 service worker
+/* Nutrition Tracker v12 service worker
    Background Web Push receiver. A push server is required to actually schedule
    delivery while the PWA is closed. */
 self.addEventListener('push', function(event) {
