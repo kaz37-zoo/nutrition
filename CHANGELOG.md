@@ -1,3 +1,37 @@
+# Version 15.3 — 2026-08-22
+
+### Branding / navigation
+- アプリ名を `nutridiary` へ統一
+- 常時日時表示を削除し、コンパクトなwordmarkへ変更
+- `manifest.webmanifest` を追加
+- 下部固定ナビへ「設定」を追加し、AIの右側へ配置
+- 食材マスタから戻る先を設定タブへ変更
+
+### Daily UX
+- 今日画面を「朝食 / 昼食 / 夕食 / 間食」の4タブへ変更
+- 定期食材を朝食・昼食・夕食の各タブ下部へ配置
+- 間食タブには定期食材を表示しない
+- 食材追加・編集画面へタイミング選択を統合
+- `↔` 移動ボタンを廃止
+- `≡` ドラッグハンドルへ並び替え操作を統一
+- 食材候補リストのiPhone縦スクロールを維持
+
+### Medication / supplements
+- 毎日の薬・サプリを食材と同じチェック行UIへ変更
+- 時刻を右端へ表示
+- 毎日の一覧から「取消 / 後で / スキップ / 編集」ボタンを削除
+- 再タップによる服用チェック解除は維持
+- 編集・通知設定は設定タブへ集約
+
+### Compatibility
+- 既存データ、Ver.14の個数/本数設定、Ver.15推定エンジンを維持
+- 新規バックアップ名をnutridiaryへ変更し、旧NutritionTracker形式も読み込み可能
+
+### Tests
+- JavaScript syntax: PASS
+- Service Worker syntax: PASS
+- Ver.15.3 static regression: 21/21 PASS
+
 
 ## Version 15.2 — 2026-08-22
 

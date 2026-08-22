@@ -1,0 +1,385 @@
+{
+  "schemaVersion": 13,
+  "totalFoods": 220,
+  "classes": {
+    "mext-candidate": 165,
+    "composite": 4,
+    "ambiguous": 34,
+    "product": 12,
+    "supplement": 5
+  },
+  "foodAudit": {
+    "total": 220,
+    "qualities": {
+      "legacy": 207,
+      "official": 5,
+      "manufacturer-conflict": 1,
+      "manufacturer": 4,
+      "proxy": 3
+    },
+    "coverage": {
+      "kcal": {
+        "known": 220,
+        "backed": 13,
+        "total": 220
+      },
+      "protein": {
+        "known": 220,
+        "backed": 13,
+        "total": 220
+      },
+      "fat": {
+        "known": 220,
+        "backed": 12,
+        "total": 220
+      },
+      "satfat": {
+        "known": 220,
+        "backed": 14,
+        "total": 220
+      },
+      "carb": {
+        "known": 220,
+        "backed": 10,
+        "total": 220
+      },
+      "fiber": {
+        "known": 220,
+        "backed": 12,
+        "total": 220
+      },
+      "n3": {
+        "known": 12,
+        "backed": 12,
+        "total": 220
+      },
+      "n6": {
+        "known": 12,
+        "backed": 12,
+        "total": 220
+      },
+      "vitA": {
+        "known": 220,
+        "backed": 13,
+        "total": 220
+      },
+      "betaC": {
+        "known": 219,
+        "backed": 12,
+        "total": 220
+      },
+      "vitD": {
+        "known": 220,
+        "backed": 13,
+        "total": 220
+      },
+      "vitE": {
+        "known": 220,
+        "backed": 13,
+        "total": 220
+      },
+      "vitK": {
+        "known": 220,
+        "backed": 13,
+        "total": 220
+      },
+      "vitC": {
+        "known": 220,
+        "backed": 13,
+        "total": 220
+      },
+      "vitB1": {
+        "known": 220,
+        "backed": 13,
+        "total": 220
+      },
+      "vitB2": {
+        "known": 220,
+        "backed": 13,
+        "total": 220
+      },
+      "niacin": {
+        "known": 9,
+        "backed": 9,
+        "total": 220
+      },
+      "vitB6": {
+        "known": 9,
+        "backed": 9,
+        "total": 220
+      },
+      "vitB12": {
+        "known": 9,
+        "backed": 9,
+        "total": 220
+      },
+      "folate": {
+        "known": 9,
+        "backed": 9,
+        "total": 220
+      },
+      "pantothenic": {
+        "known": 9,
+        "backed": 9,
+        "total": 220
+      },
+      "biotin": {
+        "known": 8,
+        "backed": 8,
+        "total": 220
+      },
+      "ca": {
+        "known": 220,
+        "backed": 13,
+        "total": 220
+      },
+      "mg": {
+        "known": 10,
+        "backed": 10,
+        "total": 220
+      },
+      "p": {
+        "known": 220,
+        "backed": 13,
+        "total": 220
+      },
+      "fe": {
+        "known": 220,
+        "backed": 13,
+        "total": 220
+      },
+      "zinc": {
+        "known": 219,
+        "backed": 12,
+        "total": 220
+      },
+      "cu": {
+        "known": 10,
+        "backed": 10,
+        "total": 220
+      },
+      "mn": {
+        "known": 9,
+        "backed": 9,
+        "total": 220
+      },
+      "k": {
+        "known": 220,
+        "backed": 13,
+        "total": 220
+      },
+      "iodine": {
+        "known": 9,
+        "backed": 9,
+        "total": 220
+      },
+      "se": {
+        "known": 9,
+        "backed": 9,
+        "total": 220
+      },
+      "cr": {
+        "known": 9,
+        "backed": 9,
+        "total": 220
+      },
+      "mo": {
+        "known": 9,
+        "backed": 9,
+        "total": 220
+      },
+      "salt": {
+        "known": 220,
+        "backed": 13,
+        "total": 220
+      }
+    },
+    "critical": [
+      "kcal",
+      "protein",
+      "fat",
+      "satfat",
+      "carb",
+      "fiber",
+      "n3",
+      "n6",
+      "vitA",
+      "betaC",
+      "vitD",
+      "vitE",
+      "vitK",
+      "vitC",
+      "vitB1",
+      "vitB2",
+      "niacin",
+      "vitB6",
+      "vitB12",
+      "folate",
+      "pantothenic",
+      "biotin",
+      "ca",
+      "mg",
+      "p",
+      "fe",
+      "zinc",
+      "cu",
+      "mn",
+      "k",
+      "iodine",
+      "se",
+      "cr",
+      "mo",
+      "salt"
+    ]
+  },
+  "newProducts": [
+    {
+      "name": "業務スーパー サラダチキン（冷凍）",
+      "source": "業務スーパー公式表示（主要5項目）＋MEXT 11288 鶏むね皮なし焼きを組成Proxy",
+      "quality": "mixed",
+      "qualityByKey": {
+        "kcal": "manufacturer",
+        "protein": "manufacturer",
+        "fat": "manufacturer",
+        "carb": "manufacturer",
+        "salt": "manufacturer"
+      },
+      "estimatedKeys": [
+        "toushitsu",
+        "fiber",
+        "purine"
+      ],
+      "proxyKeys": [
+        "satfat",
+        "n3",
+        "n6",
+        "epa",
+        "dha",
+        "vitA",
+        "betaC",
+        "vitD",
+        "vitE",
+        "vitK",
+        "vitC",
+        "vitB1",
+        "vitB2",
+        "niacin",
+        "vitB6",
+        "vitB12",
+        "folate",
+        "pantothenic",
+        "biotin",
+        "ca",
+        "mg",
+        "p",
+        "fe",
+        "zinc",
+        "cu",
+        "mn",
+        "k",
+        "iodine",
+        "se",
+        "cr",
+        "mo"
+      ]
+    },
+    {
+      "name": "タニタ食堂の減塩生みそ なめらか",
+      "source": "マルコメ公式表示（主要栄養素）＋MEXT 17045 淡色辛みそProxy",
+      "quality": "mixed",
+      "qualityByKey": {
+        "kcal": "manufacturer",
+        "protein": "manufacturer",
+        "carb": "manufacturer",
+        "salt": "manufacturer"
+      },
+      "estimatedKeys": [
+        "fat",
+        "purine"
+      ],
+      "proxyKeys": [
+        "satfat",
+        "toushitsu",
+        "fiber",
+        "n3",
+        "n6",
+        "epa",
+        "dha",
+        "vitA",
+        "vitD",
+        "vitE",
+        "vitK",
+        "vitC",
+        "vitB1",
+        "vitB2",
+        "niacin",
+        "vitB6",
+        "vitB12",
+        "folate",
+        "pantothenic",
+        "biotin",
+        "ca",
+        "mg",
+        "p",
+        "fe",
+        "zinc",
+        "cu",
+        "k",
+        "iodine",
+        "se",
+        "cr",
+        "mo"
+      ]
+    },
+    {
+      "name": "トップバリュ カットわかめ",
+      "source": "トップバリュ公式表示（10g値を100g換算）＋MEXT 09040 乾燥わかめ素干しProxy",
+      "quality": "mixed",
+      "qualityByKey": {
+        "kcal": "manufacturer",
+        "protein": "manufacturer",
+        "fat": "manufacturer",
+        "carb": "manufacturer",
+        "toushitsu": "manufacturer",
+        "fiber": "manufacturer",
+        "salt": "manufacturer",
+        "ca": "manufacturer"
+      },
+      "estimatedKeys": [
+        "freeSugar"
+      ],
+      "proxyKeys": [
+        "satfat",
+        "n3",
+        "n6",
+        "epa",
+        "dha",
+        "vitA",
+        "betaC",
+        "vitD",
+        "vitE",
+        "vitK",
+        "vitC",
+        "vitB1",
+        "vitB2",
+        "niacin",
+        "vitB6",
+        "vitB12",
+        "folate",
+        "pantothenic",
+        "biotin",
+        "mg",
+        "p",
+        "fe",
+        "zinc",
+        "cu",
+        "mn",
+        "k",
+        "iodine",
+        "se",
+        "cr",
+        "mo"
+      ]
+    }
+  ]
+}
