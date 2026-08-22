@@ -1639,7 +1639,32 @@ function migrateAuditedFoodKeys(parsed){
   if(parsed.weekly){parsed.weekly.forEach(it=>{if(it.id==='w4'&&(!it.foodKey||it.foodKey==='人参')){it.foodKey='人参（生・皮つき）';it.detail='1本(150g・生/皮つき)';}});}
   return parsed;
 }
+function detectV15CrashResetRaw(){
+  try{
+    var raw=JSON.parse(localStorage.getItem(STORAGE_V11.master)||'null');
+    return !!(raw&&raw.schemaVersion===15&&raw.daily&&raw.weekly&&raw.profile&&!Object.prototype.hasOwnProperty.call(raw,'healthItems')&&!Object.prototype.hasOwnProperty.call(raw,'settings'));
+  }catch(e){return false;}
+}
+function recoverDailyFromLatestSnapshot(candidate){
+  try{
+    var h=readFirstJSON([STORAGE_V11.history,'nh_v10','nh_v8'],{}),dates=Object.keys(h||{}).sort().reverse(),snap=null;
+    for(var i=0;i<dates.length;i++){var r=h[dates[i]];if(r&&r.itemSnap&&Object.keys(r.itemSnap).length){snap=r.itemSnap;break;}}
+    if(!snap)return candidate;
+    var existing=new Set(['morning','noon','evening'].flatMap(function(sec){return (candidate.daily[sec]||[]).map(function(x){return x.id;});}));
+    Object.entries(snap).forEach(function(e){var id=e[0],x=e[1]||{};if(existing.has(id))return;var c=String(id).charAt(0),sec=c==='m'?'morning':c==='n'?'noon':c==='e'?'evening':null;if(!sec||!x.name)return;candidate.daily[sec].push({id:id,name:x.name,detail:x.detail||'',amount:isFinite(Number(x.amount))?Number(x.amount):100,foodKey:x.foodKey||x.name});existing.add(id);});
+  }catch(e){console.warn('履歴からの設定復旧をスキップ',e);}
+  return candidate;
+}
+function recoverV15CrashMaster(){
+  var legacy=readFirstJSON(['nm_v10','nm_v8'],null),base=legacy||readFirstJSON([STORAGE_V11.master],null),candidate=normalizeMasterV12(migrateAuditedFoodKeys(base));
+  candidate=recoverDailyFromLatestSnapshot(candidate);
+  candidate.settings=Object.assign({reminderSnoozeMinutes:30},candidate.settings||{});
+  candidate.settings.v15CrashRecoveryNotice=true;
+  candidate.settings.v15CrashRecoveredAt=new Date().toISOString();
+  return candidate;
+}
 function loadMaster(){
+  if(detectV15CrashResetRaw())return recoverV15CrashMaster();
   var parsed=readFirstJSON([STORAGE_V11.master,'nm_v10','nm_v8'],null);
   return normalizeMasterV12(migrateAuditedFoodKeys(parsed));
 }
@@ -3236,34 +3261,28 @@ setTimeout(autoRefreshMextEnrichment,1800);
 document.addEventListener('click',function(e){var el=e.target.closest('[data-action]');if(!el)return;var a=el.dataset.action,handled=true;if(a==='bulk-check')bulkToggleTiming(el.dataset.sec);else if(a==='add-meal-group')openMealGroupEditor(el.dataset.sec,null);else if(a==='edit-meal-group')openMealGroupEditor(null,el.dataset.id);else if(a==='save-meal-group')saveMealGroup(el.dataset.id||null,el.dataset.sec);else if(a==='delete-meal-group')deleteMealGroup(el.dataset.id);else if(a==='toggle-meal-group')toggleMealGroup(el.dataset.id);else if(a==='hide-daily-today')hideDailyToday(el.dataset.sec,el.dataset.id);else if(a==='delete-daily-default')deleteDailyDefault(el.dataset.sec,el.dataset.id);else if(a==='restore-hidden-daily')restoreHiddenDaily();else handled=false;if(handled){e.preventDefault();e.stopImmediatePropagation();}},true);
 
 // ===================== INIT =====================
-try{
-  // 最優先：日付表示と毎日タブ（初期表示タブ）のみ
-  updateDate();
-  renderDaily();
-  // 残りは次フレームで遅延描画（体感速度UP）
-  requestAnimationFrame(function(){
-    try{
-      renderWeekly();
-      renderWeakPointBanner();
-      renderSynergyTipDaily();
-      setInterval(updateDate,30000);
-    }catch(e){console.error('Deferred init error:',e);}
-  });
-}catch(initErr){
-  console.error('Init error:',initErr);
-  // 致命的エラー → masterを初期化して再試行
-  master={
-    daily:JSON.parse(JSON.stringify(DEFAULT_DAILY)),
-    weekly:JSON.parse(JSON.stringify(DEFAULT_WEEKLY)),
-    profile:JSON.parse(JSON.stringify(DEFAULT_PROFILE))
-  };
-  saveMaster();
+// Ver.15.1: すべての推定エンジン定数・関数の初期化後に呼び出す。
+// 初期化失敗時もユーザーデータを自動初期化・上書きしない。
+function initializeAppSafely(){
   try{
     updateDate();
-    renderDaily();renderWeekly();
-    showBanner('⚠️ データを修復しました');
-  }catch(e2){
-    document.body.innerHTML='<div style="padding:40px;text-align:center;font-family:sans-serif"><h2>エラー</h2><p>アプリの初期化に失敗しました。<br>ブラウザのキャッシュ・データをクリアして再読み込みしてください。</p><p style="color:#999;font-size:13px">'+(e2.message||'')+'</p></div>';
+    renderDaily();
+    if(master.settings&&master.settings.v15CrashRecoveryNotice){
+      showBanner('前回の初期化エラーから設定を可能な範囲で復旧しました');
+      delete master.settings.v15CrashRecoveryNotice;saveMaster();
+    }
+    requestAnimationFrame(function(){
+      try{
+        renderWeekly();
+        renderWeakPointBanner();
+        renderSynergyTipDaily();
+        setInterval(updateDate,30000);
+      }catch(e){console.error('Deferred init error:',e);}
+    });
+  }catch(initErr){
+    console.error('Init error:',initErr);
+    var msg=(initErr&&initErr.message)||String(initErr||'不明なエラー');
+    document.body.innerHTML='<div style="min-height:100vh;padding:calc(env(safe-area-inset-top) + 56px) 24px 40px;background:#F2F2F7;color:#1C1C1E;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif;text-align:center"><div style="font-size:36px;margin-bottom:14px">⚠︎</div><h2 style="font-size:28px;margin:0 0 12px">アプリを開けませんでした</h2><p style="font-size:17px;line-height:1.55;margin:0 auto 18px;max-width:430px">データは削除していません。ページを再読み込みしてください。改善しない場合は、表示されたエラー内容を共有してください。</p><button onclick="location.reload()" style="min-height:50px;border:0;border-radius:14px;padding:0 22px;background:#007AFF;color:#fff;font-size:17px;font-weight:700">再読み込み</button><p style="font-size:13px;line-height:1.45;color:#8E8E93;margin:18px auto 0;max-width:430px;word-break:break-word">'+escapeHtml(msg)+'</p></div>';
   }
 }
 setInterval(()=>{
@@ -3806,41 +3825,101 @@ const V15_QUALITY_CONFIDENCE={
 const V15_NON_CATEGORY_INFER=new Set(['freeSugar','epaDha']);
 let V15_REF_CACHE=null,V15_REF_CACHE_SIG='';
 function v15Quantile(a,q){if(!a||!a.length)return null;var x=a.slice().sort(function(m,n){return m-n;}),pos=(x.length-1)*q,lo=Math.floor(pos),hi=Math.ceil(pos);return lo===hi?x[lo]:x[lo]+(x[hi]-x[lo])*(pos-lo);}
+const V15_GROUP_LABELS={
+  'grain:rice':'米・もち','grain:bread':'パン類','grain:noodle':'麺類','grain:cereal':'シリアル・オーツ','grain:other':'その他穀類',
+  'tuber:root-tuber':'いも類','tuber:konjac':'こんにゃく類','tuber:other':'その他いも類',
+  'legume:soy':'大豆・大豆製品','legume:pulse':'その他豆類','legume:other':'豆類',
+  'nut:tree':'木の実','nut:seed-peanut':'種実・落花生','nut:mixed':'ミックスナッツ','nut:other':'種実類',
+  'vegetable:leafy':'葉物野菜','vegetable:crucifer':'アブラナ科野菜','vegetable:root':'根菜','vegetable:allium-aromatic':'香味・ねぎ類','vegetable:fruiting':'果菜','vegetable:stem-sprout':'茎・芽・とうもろこし','vegetable:other':'その他野菜',
+  'fruit:citrus':'柑橘','fruit:berry-grape':'ベリー・ぶどう','fruit:pome':'りんご・梨','fruit:temperate':'その他温帯果実','fruit:tropical-melon':'熱帯果実・瓜類','fruit:avocado':'アボカド','fruit:other':'その他果実',
+  'mushroom:fresh':'生きのこ','mushroom:dried':'乾燥きのこ','mushroom:other':'きのこ',
+  'seaweed:brown':'褐藻類','seaweed:red-green':'紅藻・緑藻','seaweed:other':'海藻',
+  'seafood:bluefish':'青魚','seafood:salmon':'さけ類','seafood:tuna-bonito':'まぐろ・かつお','seafood:whitefish':'白身魚','seafood:shellfish':'貝・甲殻類','seafood:cephalopod':'いか・たこ','seafood:other':'その他魚介',
+  'meat:poultry':'鶏肉','meat:pork':'豚肉','meat:beef':'牛肉','meat:lamb':'羊肉','meat:organ':'内臓肉','meat:processed':'加工肉','meat:other':'その他肉類',
+  'dairy:milk-yogurt':'牛乳・ヨーグルト','dairy:cheese':'チーズ','dairy:cream-fat':'乳脂肪','dairy:other':'乳製品',
+  'oil:plant':'植物油','oil:other':'油脂','sugar:sweetener':'砂糖・甘味料','egg:egg':'卵','seasoning:seasoning':'調味料','other:other':'その他'
+};
+function v15ParentGroup(group){return String(group||'other:other').split(':')[0]||'other';}
 function v15FoodGroup(name,row){
-  var code=String(row&&row._mextCode||'');if(/^\d{5}$/.test(code)){var g=code.slice(0,2),m={'01':'grain','02':'tuber','03':'sugar','04':'legume','05':'nut','06':'vegetable','07':'fruit','08':'mushroom','09':'seaweed','10':'seafood','11':'meat','12':'egg','13':'dairy','14':'oil','15':'sweets','16':'beverage','17':'seasoning','18':'prepared'};if(m[g])return m[g];}
+  var code=String(row&&row._mextCode||''),parent='';
+  if(/^\d{5}$/.test(code)){var g=code.slice(0,2),m={'01':'grain','02':'tuber','03':'sugar','04':'legume','05':'nut','06':'vegetable','07':'fruit','08':'mushroom','09':'seaweed','10':'seafood','11':'meat','12':'egg','13':'dairy','14':'oil','15':'sweets','16':'beverage','17':'seasoning','18':'prepared'};parent=m[g]||'';}
   var n=String(name||'');
-  if(/鮭|さけ|サーモン|鯖|さば|いわし|さんま|ぶり|あじ|かつお|たら|牡蠣|かき|あさり|しじみ|ほたて|うなぎ|たらこ|さわら|まぐろ|ツナ|魚|えび|海老|かに/.test(n))return 'seafood';
-  if(/鶏|豚|牛|ラム|レバー|肉|サラダチキン/.test(n))return 'meat';if(/卵/.test(n))return 'egg';if(/牛乳|ヨーグルト|チーズ|乳|バター/.test(n))return 'dairy';
-  if(/わかめ|ひじき|のり|海藻|もずく|めかぶ/.test(n))return 'seaweed';if(/しいたけ|しめじ|えのき|まいたけ|エリンギ|なめこ|マッシュルーム/.test(n))return 'mushroom';
-  if(/バナナ|りんご|みかん|キウイ|ブルーベリー|いちご|もも|ぶどう|レモン|オレンジ|スイカ|柿|梨|マンゴー|パイン|アボカド/.test(n))return 'fruit';
-  if(/油|オイル/.test(n))return 'oil';if(/砂糖|はちみつ/.test(n))return 'sugar';if(/豆腐|納豆|大豆|豆乳|豆|おから/.test(n))return 'legume';if(/ナッツ|アーモンド|クルミ|カシュ|ピーナッツ|ごま/.test(n))return 'nut';
-  if(/ご飯|米|パン|パスタ|うどん|そば|麺|オートミール|春雨|もち/.test(n))return 'grain';
-  if(/じゃが|さつま|里芋|長芋/.test(n))return 'tuber';
-  if(/キャベツ|玉ねぎ|にんじん|人参|ほうれん|小松菜|ブロッコ|大根|なす|きゅうり|ごぼう|れんこん|かぼちゃ|白菜|水菜|チンゲン|オクラ|トマト|もやし|にんにく|しょうが|ねぎ|ピーマン|パプリカ|アスパラ|セロリ|にら|春菊|菜の花|しそ|カリフラワー|ズッキーニ|レタス|ルッコラ/.test(n))return 'vegetable';
-  return 'other';
+  if(!parent){
+    if(/鮭|さけ|サーモン|鯖|さば|いわし|さんま|ぶり|あじ|かつお|たら|牡蠣|かき|あさり|しじみ|ほたて|うなぎ|たらこ|さわら|まぐろ|ツナ|魚|えび|海老|かに|いか|たこ|しらす/.test(n))parent='seafood';
+    else if(/牛乳|ヨーグルト|チーズ|乳|バター|生クリーム/.test(n))parent='dairy';
+    else if(/鶏|豚|牛(?!乳)|ラム|レバー|肉|サラダチキン|ベーコン|ソーセージ|ハム/.test(n))parent='meat';
+    else if(/卵/.test(n))parent='egg';
+    else if(/わかめ|ひじき|のり|海藻|もずく|めかぶ/.test(n))parent='seaweed';
+    else if(/しいたけ|シイタケ|しめじ|えのき|まいたけ|エリンギ|なめこ|マッシュルーム/.test(n))parent='mushroom';
+    else if(/バナナ|りんご|みかん|キウイ|ブルーベリー|いちご|もも|ぶどう|レモン|オレンジ|スイカ|柿|梨|マンゴー|パイン|アボカド|グレープフルーツ/.test(n))parent='fruit';
+    else if(/油|オイル/.test(n))parent='oil';
+    else if(/砂糖|はちみつ/.test(n))parent='sugar';
+    else if(/豆腐|納豆|大豆|豆乳|豆|おから|枝豆|厚揚げ|油揚げ/.test(n))parent='legume';
+    else if(/ナッツ|アーモンド|クルミ|カシュ|ピーナッツ|ごま|ゴマ/.test(n))parent='nut';
+    else if(/ご飯|米|パン|パスタ|うどん|そば|麺|オートミール|春雨|もち|シリアル|コーンフレーク|グラノーラ/.test(n))parent='grain';
+    else if(/じゃが|さつま|里芋|長芋|こんにゃく|しらたき/.test(n))parent='tuber';
+    else if(/キャベツ|玉ねぎ|にんじん|人参|ほうれん|小松菜|ブロッコ|大根|なす|きゅうり|ごぼう|れんこん|かぼちゃ|白菜|水菜|チンゲン|オクラ|トマト|もやし|にんにく|しょうが|ねぎ|ピーマン|パプリカ|アスパラ|セロリ|にら|春菊|菜の花|しそ|カリフラワー|ズッキーニ|レタス|ルッコラ|とうもろこし|コーン/.test(n))parent='vegetable';
+    else if(/味噌|みそ|しょうゆ|ケチャップ|みりん|酢|ソース|豆板醤|マヨネーズ/.test(n))parent='seasoning';
+    else parent='other';
+  }
+  if(parent==='meat'){
+    if(/レバー|肝/.test(n))return 'meat:organ'; if(/ベーコン|ソーセージ|ハム/.test(n))return 'meat:processed'; if(/鶏|サラダチキン/.test(n))return 'meat:poultry'; if(/豚/.test(n))return 'meat:pork'; if(/牛/.test(n))return 'meat:beef'; if(/ラム|羊/.test(n))return 'meat:lamb'; return 'meat:other';
+  }
+  if(parent==='seafood'){
+    if(/鮭|さけ|サーモン/.test(n))return 'seafood:salmon'; if(/鯖|さば|いわし|さんま|あじ|ぶり|さわら/.test(n))return 'seafood:bluefish'; if(/まぐろ|かつお|ツナ/.test(n))return 'seafood:tuna-bonito'; if(/たら(?!こ)/.test(n))return 'seafood:whitefish'; if(/えび|海老|かき|牡蠣|あさり|しじみ|ほたて|かに/.test(n))return 'seafood:shellfish'; if(/いか|たこ/.test(n))return 'seafood:cephalopod'; return 'seafood:other';
+  }
+  if(parent==='vegetable'){
+    if(/ほうれん|小松菜|水菜|チンゲン|にら|春菊|もろへいや|菜の花|しそ|レタス|ルッコラ|白菜|キャベツ/.test(n))return 'vegetable:leafy'; if(/ブロッコ|カリフラワー|かいわれ/.test(n))return 'vegetable:crucifer'; if(/人参|にんじん|大根|ごぼう|れんこん/.test(n))return 'vegetable:root'; if(/玉ねぎ|にんにく|しょうが|ねぎ/.test(n))return 'vegetable:allium-aromatic'; if(/トマト|なす|ピーマン|パプリカ|きゅうり|オクラ|かぼちゃ|ズッキーニ/.test(n))return 'vegetable:fruiting'; if(/アスパラ|セロリ|もやし|とうもろこし|コーン/.test(n))return 'vegetable:stem-sprout'; return 'vegetable:other';
+  }
+  if(parent==='fruit'){
+    if(/みかん|グレープフルーツ|オレンジ|レモン/.test(n))return 'fruit:citrus'; if(/ブルーベリー|いちご|ぶどう/.test(n))return 'fruit:berry-grape'; if(/りんご|梨/.test(n))return 'fruit:pome'; if(/もも|柿/.test(n))return 'fruit:temperate'; if(/バナナ|キウイ|マンゴー|パイナップル|パイン|スイカ/.test(n))return 'fruit:tropical-melon'; if(/アボカド/.test(n))return 'fruit:avocado'; return 'fruit:other';
+  }
+  if(parent==='grain'){if(/ご飯|白米|玄米|おにぎり|もち/.test(n))return 'grain:rice';if(/食パン|フランスパン|ロールパン|全粒粉パン|クロワッサン|ピザ生地/.test(n))return 'grain:bread';if(/パスタ|うどん|そば|ラーメン|そうめん|春雨/.test(n))return 'grain:noodle';if(/オートミール|グラノーラ|コーンフレーク/.test(n))return 'grain:cereal';return 'grain:other';}
+  if(parent==='legume'){if(/納豆|豆腐|豆乳|枝豆|大豆|厚揚げ|油揚げ|おから|高野豆腐/.test(n))return 'legume:soy';if(/ひよこ豆|レンズ豆|小豆|そら豆/.test(n))return 'legume:pulse';return 'legume:other';}
+  if(parent==='nut'){if(/アーモンド|クルミ|カシュ/.test(n))return 'nut:tree';if(/ピーナッツ|ゴマ|ごま/.test(n))return 'nut:seed-peanut';if(/ミックス/.test(n))return 'nut:mixed';return 'nut:other';}
+  if(parent==='dairy'){if(/チーズ/.test(n))return 'dairy:cheese';if(/生クリーム|バター/.test(n))return 'dairy:cream-fat';if(/牛乳|ヨーグルト/.test(n))return 'dairy:milk-yogurt';return 'dairy:other';}
+  if(parent==='seaweed'){if(/ひじき|わかめ|めかぶ|もずく/.test(n))return 'seaweed:brown';if(/のり/.test(n))return 'seaweed:red-green';return 'seaweed:other';}
+  if(parent==='mushroom'){if(/干し|乾/.test(n))return 'mushroom:dried';return 'mushroom:fresh';}
+  if(parent==='tuber'){if(/こんにゃく|しらたき/.test(n))return 'tuber:konjac';if(/じゃが|さつま|里芋|長芋/.test(n))return 'tuber:root-tuber';return 'tuber:other';}
+  if(parent==='oil')return /オリーブ|ごま油|サラダ油/.test(n)?'oil:plant':'oil:other';
+  if(parent==='sugar')return 'sugar:sweetener'; if(parent==='egg')return 'egg:egg'; if(parent==='seasoning')return 'seasoning:seasoning';
+  return parent+':other';
 }
 function v15BuildRefs(){
   var en=loadMextEnrichment(),sig=Object.keys(en).length+'|'+Object.keys(getCustomFoodDB()).length+'|'+Object.keys(BUILTIN_FOOD_DB).length;if(V15_REF_CACHE&&V15_REF_CACHE_SIG===sig)return V15_REF_CACHE;
-  var db=getFoodDB(),refs={groups:{},global:{}};NUT_KEYS.forEach(function(k){refs.global[k]=[];});
-  Object.entries(db).forEach(function(e){var name=e[0],row=e[1],cls=foodDataClass(name);if(['supplement','composite','product'].includes(cls)||row._aliasOf)return;var g=v15FoodGroup(name,row);if(!refs.groups[g])refs.groups[g]={};NUT_KEYS.forEach(function(k){var v=row[k];if(!isKnownNut(v))return;var q=(row._qualityByKey&&row._qualityByKey[k])||row._quality||'legacy';if(q==='custom'||q==='item'||q==='ai-official')return;(refs.groups[g][k]||(refs.groups[g][k]=[])).push(v);refs.global[k].push(v);});});
+  var db=getFoodDB(),refs={groups:{},parents:{},global:{}};NUT_KEYS.forEach(function(k){refs.global[k]=[];});
+  Object.entries(db).forEach(function(e){var name=e[0],row=e[1],cls=foodDataClass(name);if(['supplement','composite','product'].includes(cls)||row._aliasOf)return;var g=v15FoodGroup(name,row),parent=v15ParentGroup(g);if(!refs.groups[g])refs.groups[g]={};if(!refs.parents[parent])refs.parents[parent]={};NUT_KEYS.forEach(function(k){var v=row[k];if(!isKnownNut(v))return;var q=(row._qualityByKey&&row._qualityByKey[k])||row._quality||'legacy';if(q==='custom'||q==='item'||q==='ai-official')return;(refs.groups[g][k]||(refs.groups[g][k]=[])).push(v);(refs.parents[parent][k]||(refs.parents[parent][k]=[])).push(v);refs.global[k].push(v);});});
   V15_REF_CACHE=refs;V15_REF_CACHE_SIG=sig;return refs;
 }
-function v15Reference(group,key){var refs=v15BuildRefs(),a=(refs.groups[group]&&refs.groups[group][key])||[],use=a.length>=6?a:refs.global[key]||[];if(!use.length)return null;var zeros=use.filter(function(v){return v===0;}).length;return {n:use.length,q20:v15Quantile(use,.2),q50:v15Quantile(use,.5),q80:v15Quantile(use,.8),zeroRatio:zeros/use.length,sameGroup:a.length>=6};}
+function v15Reference(group,key){
+  var refs=v15BuildRefs(),parent=v15ParentGroup(group),sub=(refs.groups[group]&&refs.groups[group][key])||[],par=(refs.parents[parent]&&refs.parents[parent][key])||[],glob=refs.global[key]||[],use,specificity;
+  if(sub.length>=5){use=sub;specificity='subgroup';}
+  else if(par.length>=6){use=par;specificity='parent';}
+  else {use=glob;specificity='global';}
+  if(!use.length)return null;var zeros=use.filter(function(v){return v===0;}).length;return {n:use.length,q20:v15Quantile(use,.2),q50:v15Quantile(use,.5),q80:v15Quantile(use,.8),zeroRatio:zeros/use.length,sameGroup:specificity!=='global',specificity:specificity,parent:parent,label:V15_GROUP_LABELS[group]||parent};
+}
 function v15StrongZero(name,row,key,group){
   if(foodDataClass(name)!=='mext-candidate'&&!(row&&row._quality==='official'))return false;
-  var plant=['grain','tuber','sugar','legume','nut','vegetable','fruit','oil'];
-  if(['epa','dha','epaDha','vitB12'].includes(key)&&plant.includes(group))return true;
-  if(key==='vitD'&&plant.includes(group))return true;
-  if(key==='fiber'&&['meat','seafood','egg','dairy','oil','sugar'].includes(group))return true;
-  if(key==='freeSugar'&&['grain','tuber','legume','nut','vegetable','fruit','mushroom','seaweed','meat','seafood','egg','dairy','oil'].includes(group))return true;
-  if(key==='purine'&&['oil','sugar'].includes(group))return true;
-  var r=v15Reference(group,key);return !!(r&&r.sameGroup&&r.n>=10&&r.zeroRatio>=.88&&r.q80===0);
+  var parent=v15ParentGroup(group),safePlant=(group==='grain:rice'||group==='grain:other'||['tuber','sugar','legume','nut','vegetable','fruit','oil'].includes(parent));
+  if(['epa','dha','epaDha','vitB12'].includes(key)&&safePlant)return true;
+  if(key==='vitD'&&safePlant)return true;
+  if(key==='fiber'&&['meat','seafood','egg','dairy','oil','sugar'].includes(parent))return true;
+  if(key==='freeSugar'){
+    if(['tuber','vegetable','mushroom','seaweed','meat','seafood','egg','oil'].includes(parent))return true;
+    if(parent==='fruit'&&!/ジュース|果汁|飲料/.test(String(name||'')))return true;
+    if(parent==='legume'&&group!=='legume:other')return true;
+    if(parent==='dairy'&&group==='dairy:milk-yogurt'&&!/加糖|フルーツ|飲料/.test(String(name||'')))return true;
+    if(parent==='grain'&&group==='grain:rice')return true;
+  }
+  if(key==='purine'&&['oil','sugar'].includes(parent))return true;
+  var r=v15Reference(group,key);return !!(r&&r.specificity==='subgroup'&&r.n>=10&&r.zeroRatio>=.88&&r.q80===0);
 }
+
 function v15KnownQualityConfidence(q){return V15_QUALITY_CONFIDENCE[q]!==undefined?V15_QUALITY_CONFIDENCE[q]:.55;}
 function v15InferPer100(name,row,key){
   var group=v15FoodGroup(name,row);
   if(v15StrongZero(name,row,key,group))return {low:0,mid:0,high:0,confidence:.88,quality:'estimated-zero',group:group,reason:'同群・食品特性からほぼ0'};
-  if(!V15_NON_CATEGORY_INFER.has(key)){var r=v15Reference(group,key);if(r&&r.n>=6){var spread=(r.q80||0)-(r.q20||0),den=Math.abs(r.q50||0)+spread+1e-9,conf=Math.min(.72,.48+(r.sameGroup?.11:.03)+Math.min(.08,Math.log10(r.n+1)*.035)-Math.min(.10,spread/den*.08));return {low:Math.max(0,r.q20||0),mid:Math.max(0,r.q50||0),high:Math.max(0,r.q80||0),confidence:conf,quality:'inferred-range',group:group,reason:(r.sameGroup?'同じ食品群':'全食品')+'の分布から推定'};}}
+  if(!V15_NON_CATEGORY_INFER.has(key)){var r=v15Reference(group,key);if(r&&r.n>=5){var spread=(r.q80||0)-(r.q20||0),den=Math.abs(r.q50||0)+spread+1e-9,bonus=r.specificity==='subgroup'?.14:r.specificity==='parent'?.08:.02,conf=Math.min(.78,.48+bonus+Math.min(.08,Math.log10(r.n+1)*.035)-Math.min(.10,spread/den*.08)),reason=r.specificity==='subgroup'?(r.label+'の分布から推定'):r.specificity==='parent'?('近い食品群（'+r.parent+'）の分布から推定'):'全食品の分布から推定';return {low:Math.max(0,r.q20||0),mid:Math.max(0,r.q50||0),high:Math.max(0,r.q80||0),confidence:conf,quality:'inferred-range',group:group,reason:reason};}}
   return {low:0,mid:0,high:null,confidence:.14,quality:'fallback-zero',group:group,reason:'推定不能のため保守下限0'};
 }
 function v15PotentialPer100(group,key){var r=v15Reference(group,key);if(!r)return 0;return Math.max(0,r.q80||r.q50||0);}
@@ -3893,6 +3972,9 @@ function summaryCardHtml(recs,periodLabel,targets,showStreak){
 function buildPromptContext(){var p=master.profile||DEFAULT_PROFILE,targets=calcTargets(p),agg=aggregateNutrientsForDate(todayKey()),totals=agg.totals,aL={low:'低い',normal:'ふつう',high:'高い'},mainCfg=GOAL_MAIN_CONFIG[p.goalMain||'maintain'],subs=(p.goalSubs||[]).map(function(k){var c=GOAL_SUB_CONFIG[k];return c?c.label:'';}).filter(Boolean),lowNuts=[],indeterminate=[];Object.entries(targets).forEach(function(e){var k=e[0],t=e[1];if(k.startsWith('_')||t.limit||t.info||t.range||t.t==null)return;var st=v15StageForTarget(k,t,agg),pct=t.t>0?(st.mid/t.t*100):100,obj={key:k,label:t.label,cur:st.mid,target:t.t,unit:t.unit,pct:Math.round(pct),confidence:Math.round(st.confidence*100),stage:st.label,low:st.low,high:st.high};if(st.code==='deficient'||st.code==='low-likely')lowNuts.push(obj);else if(st.code==='uncertain')indeterminate.push(obj);});lowNuts.sort(function(a,b){return a.pct-b.pct;});return {p:p,targets:targets,totals:totals,coverage:agg.coverage,confidence:agg.confidence,quality:agg.quality,aL:aL,mainCfg:mainCfg,subs:subs,lowNuts:lowNuts,indeterminate:indeterminate,aggregate:agg};}
 function renderFoodAuditSummary(){var el=document.getElementById('food-audit-summary');if(!el)return;var a=foodAuditStats(),en=loadMextEnrichment(),mapped=Object.keys(en).filter(function(k){return k!=='__meta';}).length;el.innerHTML='<div style="font-size:15px;font-weight:700;margin-bottom:5px">食品データの状態</div><div style="font-size:13px;line-height:1.6;color:var(--text2)">食品 '+a.total+'件'+(mapped?' ・ 標準成分表から補完 '+mapped+'件':'')+'。不明値は、ほぼ0推定・同食品群の推定範囲で補完し、なお推定不能な場合は「保守下限0」として判定に使います。実測0とは区別して保持します。</div>';}
 // ===================== END VER.15 =====================
+
+// Ver.15.1: TDZ回避。推定エンジンの初期化完了後に初回描画を開始する。
+initializeAppSafely();
 
 </script>
 </body>
