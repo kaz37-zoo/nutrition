@@ -1,3 +1,9 @@
+# Ver.15.3.1
+
+- Fix: Ver.15.3 末尾の旧栄養集計関数が推定エンジン版を上書きし、`agg.lower` が undefined になる起動エラーを修正。
+- Regression guard: 最終集計関数が推定範囲・信頼度を必ず返すことを検証。
+- Data safety: localStorage の削除・初期化は行わない。
+
 # Version 15.3 — 2026-08-22
 
 ### Branding / navigation

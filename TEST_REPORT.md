@@ -1,3 +1,11 @@
+# Ver.15.3.1 Hotfix Tests
+
+- JavaScript syntax: PASS
+- Service Worker syntax: PASS
+- Final `aggregateNutrientsForDate()` uses `v15EstimateAccumulator`: PASS
+- Empty inference aggregate contains `lower`, `upper`, `confidence`, `coverage`, `quality`, `inference`: PASS
+- Final source after the last aggregate definition contains no fallback to `createNutAccumulator()`: PASS
+
 # Version 15.3 Test Report
 
 Date: 2026-08-22

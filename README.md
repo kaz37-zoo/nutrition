@@ -1,3 +1,11 @@
+
+## Ver.15.3.1 hotfix
+
+- Ver.15.3 の画面再設計で旧 `aggregateNutrientsForDate()` が末尾に再混入し、推定エンジン版を上書きする回帰不具合を修正。
+- 栄養集計は常に `totals / lower / upper / confidence / coverage / quality / inference` を返します。
+- 未記録日や空の食事記録でも栄養画面が起動します。
+- 既存 localStorage データの削除・初期化は不要です。
+
 # nutridiary
 
 **Version 15.3**  
