@@ -1,47 +1,34 @@
-# Version 15.1 Test Report
+# Version 15.2 Test Report
 
-Date: 2026-08-21
+Date: 2026-08-22
 
 ## Static / syntax
 
 - JavaScript syntax: PASS
-- Service Worker syntax: PASS
 - Storage schema version: 15（互換性維持）
 
-## Ver.15 regression
+## Regression
 
-- 推定範囲 / lower / upper / confidence / inference: PASS
-- `estimated-zero`: PASS
-- `fallback-zero` lower bound 0 + open upper bound: PASS
-- 履歴への推定メタデータ保存: PASS
-- 不確実な食品量が多いほど信頼度が低下: PASS
-- 5段階判定すべて: PASS
-- 今日の不足・推定範囲・信頼度UI: PASS
+- Ver.15.1 inference constants / safe startup: PASS
+- Existing custom master survives startup: PASS
+- Hierarchical inference subgroup / fallback behavior: PASS
+- free sugar strong-zero exceptions: PASS
 
-## Startup hotfix
+## Version 15.2
 
-- `V15_QUALITY_CONFIDENCE` 初期化前参照が発生しない: PASS
-- カスタムmasterを保持したまま起動: PASS
-- 起動時に保存済みmasterをデフォルトで上書きしない: PASS
-- 旧Ver.15クラッシュ保存形を検出: PASS
-- legacy profile / daily item復旧: PASS
-- 直近history itemSnapから新しいdaily item復旧: PASS
-- 復旧後masterを現行shapeへnormalize: PASS
+- 卵・バナナの個数/本数初期設定: PASS
+- 既存卵データを個数メタデータへ安全移行: PASS
+- 生年月日→年齢（誕生日前日/当日境界）: PASS
+- 今日画面3サブタブ機能: PASS
+- 定期食材ドラッグ用グリップ: PASS
+- 定期食材の並び順保存ロジック: PASS
+- 通常食材の並び順保存ロジック: PASS
+- 食材候補選択からtouchstart/preventDefaultを除去: PASS
+- 候補リストのpan-y / 慣性スクロールCSS: PASS
+- 栄養カードの過不足主表示: PASS
+- 推定幅の別ラベル・別配色: PASS
+- 推定判定注意書きをフッターへ移動する処理: PASS
 
-## Hierarchical inference groups
+## Environment note
 
-- ほうれん草 → 葉物野菜: PASS
-- 人参 → 根菜: PASS
-- 鯖 → 青魚: PASS
-- たら → 白身魚: PASS
-- 牛乳 → 牛乳・ヨーグルト: PASS
-- 食パン → パン類: PASS
-- サンプル十分な葉物はsubgroup推定: PASS
-- サンプル不足の白身魚はparent/globalへfallback: PASS
-- 食パンの遊離糖を強制0にしない: PASS
-- オレンジジュースの遊離糖を強制0にしない: PASS
-- whole fruitのfree sugarは定義上の0推定が可能: PASS
-
-## Interpretation
-
-細分化は「分類を細かくすること」自体を目的にせず、十分なサンプルがあるときだけ推定範囲を狭めます。サンプルが足りない分類は自動で親グループへ戻るため、少数データから過度に精密な推定値を作りません。
+JavaScript構文とVMロジック回帰は実施済みです。この実行環境ではブラウザのローカルURL/file URLアクセスが管理ポリシーで遮断されたため、今回の最終版について実iPhone Safariそのものの操作試験は未実施です。
